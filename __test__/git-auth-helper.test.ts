@@ -423,6 +423,8 @@ async function setup(testName: string): Promise<void> {
     log1: jest.fn(),
     remoteAdd: jest.fn(),
     setEnvironmentVariable: jest.fn(),
+    submoduleSync: jest.fn(),
+    submoduleUpdate: jest.fn(),
     tagExists: jest.fn(),
     tryClean: jest.fn(),
     tryConfigUnset: jest.fn(
@@ -448,6 +450,8 @@ async function setup(testName: string): Promise<void> {
     commit: '',
     fetchDepth: 1,
     lfs: false,
+    submodules: false,
+    nestedSubmodules: false,
     persistCredentials: true,
     ref: 'refs/heads/master',
     repositoryName: 'my-repo',
