@@ -14,3 +14,13 @@ if [ -f "./submodules-true/submodule-level-1/submodule-level-2/nested-submodule-
     echo "Unexpected nested submodule file exists"
     exit 1
 fi
+
+echo "Testing persisted credential"
+pushd ./submodules-true/submodule-level-1
+git config --local --name-only --get-regexp http.+extraheader && git fetch
+if [ "$?" == "0" ]; then
+    echo "Failed to validate persisted credential"
+    popd
+    exit 1
+fi
+popd
