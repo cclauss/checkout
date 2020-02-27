@@ -5107,6 +5107,7 @@ const fs = __importStar(__webpack_require__(747));
 const io = __importStar(__webpack_require__(1));
 const os = __importStar(__webpack_require__(87));
 const path = __importStar(__webpack_require__(622));
+const regexpHelper = __importStar(__webpack_require__(528));
 const stateHelper = __importStar(__webpack_require__(153));
 const v4_1 = __importDefault(__webpack_require__(826));
 const IS_WINDOWS = process.platform === 'win32';
@@ -5149,7 +5150,7 @@ class GitAuthHelper {
             this.temporaryHomePath = path.join(runnerTemp, uniqueId);
             yield fs.promises.mkdir(this.temporaryHomePath, { recursive: true });
             // Copy the global git config
-            const gitConfigPath = path.join(os.homedir(), '.gitconfig');
+            const gitConfigPath = path.join(process.env['HOME'] || os.homedir(), '.gitconfig');
             const newGitConfigPath = path.join(this.temporaryHomePath, '.gitconfig');
             let configExists = false;
             try {
@@ -5176,6 +5177,7 @@ class GitAuthHelper {
             }
             catch (err) {
                 // Unset in case somehow written to the real global config
+                core.info('Encountered an error when attempting to configure token. Attempting unconfigure.');
                 yield this.git.tryConfigUnset(this.tokenConfigKey, true);
                 throw err;
             }
@@ -5232,15 +5234,18 @@ class GitAuthHelper {
                 yield exec.exec(`"${icacls}" "${this.sshKeyPath}" /inheritance:r`);
             }
             // Write known hosts
-            const userKnownHostsPath = path.join(os.homedir(), '.ssh', 'known_hosts');
+            const userKnownHostsPath = path.join(process.env['HOME'] || os.homedir(), '.ssh', 'known_hosts');
+            core.debug(`Checking whether exists '${userKnownHostsPath}'`);
             let userKnownHosts = '';
             try {
                 userKnownHosts = (yield fs.promises.readFile(userKnownHostsPath)).toString();
+                core.debug(`User known hosts exists '${userKnownHostsPath}'`);
             }
             catch (err) {
                 if (err.code !== 'ENOENT') {
                     throw err;
                 }
+                core.debug(`User known hosts does not exist '${userKnownHostsPath}'`);
             }
             let knownHosts = '';
             if (userKnownHosts) {
@@ -5336,6 +5341,8 @@ class GitAuthHelper {
                 // Load the config contents
                 core.warning(`Failed to remove '${configKey}' from the git config`);
             }
+            const pattern = regexpHelper.escape(configKey);
+            yield this.git.submoduleForeach(`git config --local --name-only --get-regexp ${pattern} && git config --local --unset-all ${configKey} || :`, true);
         });
     }
 }
@@ -5370,6 +5377,7 @@ const exec = __importStar(__webpack_require__(986));
 const fshelper = __importStar(__webpack_require__(618));
 const io = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(622));
+const regexpHelper = __importStar(__webpack_require__(528));
 const retryHelper = __importStar(__webpack_require__(587));
 const git_version_1 = __webpack_require__(559);
 // Auth header not supported before 2.9
@@ -5473,9 +5481,7 @@ class GitCommandManager {
     }
     configExists(configKey, globalConfig) {
         return __awaiter(this, void 0, void 0, function* () {
-            const pattern = configKey.replace(/[^a-zA-Z0-9_]/g, x => {
-                return `\\${x}`;
-            });
+            const pattern = regexpHelper.escape(configKey);
             const output = yield this.execGit([
                 'config',
                 globalConfig ? '--global' : '--local',
@@ -9696,6 +9702,22 @@ module.exports = Hook
 module.exports.Hook = Hook
 module.exports.Singular = Hook.Singular
 module.exports.Collection = Hook.Collection
+
+
+/***/ }),
+
+/***/ 528:
+/***/ (function(__unusedmodule, exports) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+function escape(value) {
+    return value.replace(/[^a-zA-Z0-9_]/g, x => {
+        return `\\${x}`;
+    });
+}
+exports.escape = escape;
 
 
 /***/ }),

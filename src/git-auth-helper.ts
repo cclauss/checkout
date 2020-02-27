@@ -5,6 +5,7 @@ import * as fs from 'fs'
 import * as io from '@actions/io'
 import * as os from 'os'
 import * as path from 'path'
+import * as regexpHelper from './regexp-helper'
 import * as stateHelper from './state-helper'
 import {default as uuid} from 'uuid/v4'
 import {IGitCommandManager} from './git-command-manager'
@@ -75,7 +76,10 @@ class GitAuthHelper {
     await fs.promises.mkdir(this.temporaryHomePath, {recursive: true})
 
     // Copy the global git config
-    const gitConfigPath = path.join(os.homedir(), '.gitconfig')
+    const gitConfigPath = path.join(
+      process.env['HOME'] || os.homedir(),
+      '.gitconfig'
+    )
     const newGitConfigPath = path.join(this.temporaryHomePath, '.gitconfig')
     let configExists = false
     try {
@@ -102,6 +106,9 @@ class GitAuthHelper {
       await this.configureToken(newGitConfigPath, true)
     } catch (err) {
       // Unset in case somehow written to the real global config
+      core.info(
+        'Encountered an error when attempting to configure token. Attempting unconfigure.'
+      )
       await this.git.tryConfigUnset(this.tokenConfigKey, true)
       throw err
     }
@@ -173,16 +180,23 @@ class GitAuthHelper {
     }
 
     // Write known hosts
-    const userKnownHostsPath = path.join(os.homedir(), '.ssh', 'known_hosts')
+    const userKnownHostsPath = path.join(
+      process.env['HOME'] || os.homedir(),
+      '.ssh',
+      'known_hosts'
+    )
+    core.debug(`Checking whether exists '${userKnownHostsPath}'`)
     let userKnownHosts = ''
     try {
       userKnownHosts = (
         await fs.promises.readFile(userKnownHostsPath)
       ).toString()
+      core.debug(`User known hosts exists '${userKnownHostsPath}'`)
     } catch (err) {
       if (err.code !== 'ENOENT') {
         throw err
       }
+      core.debug(`User known hosts does not exist '${userKnownHostsPath}'`)
     }
     let knownHosts = ''
     if (userKnownHosts) {
@@ -300,5 +314,11 @@ class GitAuthHelper {
       // Load the config contents
       core.warning(`Failed to remove '${configKey}' from the git config`)
     }
+
+    const pattern = regexpHelper.escape(configKey)
+    await this.git.submoduleForeach(
+      `git config --local --name-only --get-regexp ${pattern} && git config --local --unset-all ${configKey} || :`,
+      true
+    )
   }
 }

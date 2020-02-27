@@ -1,4 +1,3 @@
-  
 #!/bin/bash
 
 if [ ! -f "./submodules-true/regular-file.txt" ]; then

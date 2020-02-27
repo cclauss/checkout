@@ -3,6 +3,7 @@ import * as exec from '@actions/exec'
 import * as fshelper from './fs-helper'
 import * as io from '@actions/io'
 import * as path from 'path'
+import * as regexpHelper from './regexp-helper'
 import * as retryHelper from './retry-helper'
 import {GitVersion} from './git-version'
 
@@ -149,9 +150,7 @@ class GitCommandManager {
     configKey: string,
     globalConfig?: boolean
   ): Promise<boolean> {
-    const pattern = configKey.replace(/[^a-zA-Z0-9_]/g, x => {
-      return `\\${x}`
-    })
+    const pattern = regexpHelper.escape(configKey)
     const output = await this.execGit(
       [
         'config',
